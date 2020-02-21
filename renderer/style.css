@@ -1,0 +1,16 @@
+#instructions {
+	
+	position: absolute;
+	left: 10px;
+	top: 800px;
+	width: 100%;
+	font-family: arial;
+}
+
+body {
+	width: 1000px;
+}
+
+#main {
+	position: relative;
+}
