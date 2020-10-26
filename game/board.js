@@ -37,7 +37,13 @@ function prepareTiles() {
 }
 var positionsEvaled = 0;
 
-function Tile(no, player) {
+function Tile(no, player, rot=0, flip=0) {
+	if (no === -1) {
+		this.grid = [];
+		this.no = no;
+		this.player = player;
+		return;
+	}
 	if (typeof no !== "number") {
 		this.grid = [];
 		for (var r in no.grid) {
@@ -51,6 +57,13 @@ function Tile(no, player) {
 		this.player = player;
 		this.no = no;
 	}
+	for (var f = 0; f < flip; ++f) {
+		this.flip();
+	}
+	for (var r = 0; r < rot; ++r) {
+		this.rotate();
+	}
+	
 }
 
 
@@ -295,7 +308,7 @@ Board.prototype.legalMove = function(tile, ox, oy, forceConnect = false) {
 Board.prototype.evilFit = function(ox, oy, shape, player) {
 	for (var dy = 0; dy < shape.length; ++dy) {
 		for (var dx = 0; dx < shape[dy].length; ++dx) {
-			if (oy + dy > 10 || ox + dx > 10) {
+			if (oy + dy > 10 || ox + dx > 10 || ox + dx < 0 || oy+dy < 0) {
 				return false;
 			}
 			if (shape[dy][dx] && this.grid[oy + dy] && (this.grid[oy + dy][ox + dx] !== player)) {
@@ -318,11 +331,17 @@ Board.prototype.placeTile = function(tile, ox, oy) {
 	}
 }
 
-Board.prototype.makeMove = function(tile, ox, oy, force) {
+Board.prototype.makeMove = function(tile, ox, oy, force=false) {
 	// place tile with legal move checking and removing from available tiles
+	
 	if (force || this.legalMove(tile, ox, oy)) {
 		this.placeTile(tile, ox, oy);
 		var tiles = this.tilesAvailable[tile.player - 2];
+		if (tile.grid.length === 0) {
+			tiles.splice(0, 1);  // remove the first tile without placing
+			this.redPlays = !this.redPlays;
+			return true;
+		}
 		tiles.splice(tiles.indexOf(tile.no), 1);
 		
 		this.longestSnakes[tile.player - 2] = 
@@ -466,19 +485,28 @@ Board.prototype.potentialLength = function(player) {
 	return longest;
 }
 
-Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 10000, initial = true) {
+Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 10000, initial = true, otherNoTurns = false) {
 	var moves = this.possibleMoves(2 + min, !initial);
 	var bestScore = min ? 10000 : -10000;
 	var bestMove;
-	if (depth === 0 || this.tilesAvailable[1].length === 0 || moves.length === 0) {
+	if (depth === 0 || (this.tilesAvailable[1].length === 0 && this.tilesAvailable[0].length === 0)) {
 		if (initial) {
 			return undefined;
 		}
 		return this.score();
 	}
+	if (moves.length === 0) {
+		if (otherNoTurns) {
+			return this.score();
+		}
+		if (initial) {
+			return [new Tile(-1, 2+min), 0, 0];
+		}
+		return this.minimaxSearch(!min, depth-1, alpha, beta, false, true);
+	}
 	for (var move of moves) {
 		if (initial) {
-			console.log(moves.indexOf(move));
+			console.log(moves.indexOf(move) + "/" + moves.length);
 		}
 		var newBoard = new Board(this);
 		for (var r in newBoard.grid) {
@@ -493,7 +521,7 @@ Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 1000
 		/*if (initial) {
 			console.log("curr score " + newScore + " comparing to " + bestScore);
 		}*/
-		if ((min && newScore < bestScore) || (!min && newScore > bestScore)) {
+		if ((min && newScore < bestScore) || (!min && newScore >= bestScore)) {
 			bestScore = newScore;
 			bestMove = move;
 			if (initial) {
@@ -507,7 +535,7 @@ Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 1000
 		else {
 			alpha = Math.max(alpha, bestScore);
 		}
-		if (alpha >= beta) {
+		if (alpha > beta) {
 			break;
 		}
 	}
@@ -618,7 +646,7 @@ Board.prototype.randomTest = function() {
 }
 
 Board.prototype.nextMove = function() {
-	var depth = 1;
+	var depth = 20;
 	console.time("turn");
 	var move = this.minimaxSearch(!this.redPlays, depth);
 	console.log(move);

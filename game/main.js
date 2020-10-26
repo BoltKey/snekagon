@@ -2,13 +2,40 @@ var canvas;
 var ctx;
 var board;
 
+/*
+	[[1]],  // u 0
+	[[1, 1]],  // d 1
+	[[1, 1, 1]],  // w 2
+	[[1, 1], [0, 1]],  // c 3
+	[[1, 1], [0, 1, 1]],  // s 4
+	[[1, 1, 1], [0, 0, 1]],  // l 5
+	[[1, 1, 1, 1]],  // i 6
+	[[0, 1, 1], [1, 0, 1]]  // u 7
+*/
+
 function main() {
 	canvas = document.getElementsByTagName("canvas")[0];
 	ctx = canvas.getContext("2d");
 	board = new Board();
-	var tile = new Tile([2, 0, 1, 0]);
+	//var tile = new Tile([2, 0, 1, 0]);
 	prepareTiles();
-	board.randomTest();
+	//board.randomTest();
+	//board.makeMove(new Tile(0, 1, 0, 0), 0, 0);
+	//board.makeMove(new Tile(0, 3, 0, 0), 6, 6);
+	board.makeMove(new Tile(3, 3, 3, 0), 2, 4, true);
+	board.makeMove(new Tile(4, 3, 2, 0), 3, 1, true);
+	board.makeMove(new Tile(5, 3, 2, 1), 4, 4, true);
+	board.makeMove(new Tile(7, 3, 3, 0), 8, 4, true);
+	//board.makeMove(new Tile(2, 3, 0, 0), 7, 2, true);
+	
+	
+	board.makeMove(new Tile(7, 2, 1, 0), 6, 5, true);
+	board.makeMove(new Tile(6, 2, 0, 0), 1, 6, true);
+	board.makeMove(new Tile(5, 2, 2, 0), 6, 6, true);
+	//board.makeMove(new Tile(4, 2, 0, 0), 0, 8, true);
+	//board.makeMove(new Tile(1, 2, 0, 0), 8, 0, true);
+	
+	board.nextMove();
 	board.draw();
 }
 
