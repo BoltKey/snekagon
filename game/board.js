@@ -36,6 +36,7 @@ function prepareTiles() {
 	}
 }
 var positionsEvaled = 0;
+var totalPositionsApprox = 1;
 
 function Tile(no, player, rot=0, flip=0) {
 	if (no === -1) {
@@ -139,10 +140,14 @@ function Board(orig) {
 			}
 		}
 		
-		this.grid[5][5] = 2;
+		//this.grid[5][5] = 2;
 		this.longestSnakes = [0, 0];
-		this.tilesAvailable = [[7,6,5,4,3,2,1], [7,6,5,4,3,2,1]];
+		this.tilesAvailable = [[7,6,5,4,3,2,1], [7,6,5,4,3,2,1, 0]];
 	}
+	
+	this.shadeTile = undefined;
+	this.shadeX = 5;
+	this.shadeY = 5;
 	
 	this.hexSize = 30;
 }
@@ -174,7 +179,14 @@ Board.prototype.draw = function() {
 		
 		for (var x = 0; x < row.length; ++x) {
 			if (this.grid[y][x]) {
-				ctx.fillStyle = [0, "white", "red", "blue"][this.grid[y][x]];
+				var sx = x - this.shadeX;
+				var sy = y - this.shadeY;
+				if (this.shadeTile && sx >= 0 && sy >= 0 && sy < this.shadeTile.grid.length && sx < this.shadeTile.grid[sy].length && this.shadeTile.grid[sy][sx]) {
+					ctx.fillStyle = "gray";
+				}
+				else {
+					ctx.fillStyle = [0, "#704811", "#b30707", "#00960f"][this.grid[y][x]];
+				}
 				drawHex(this.hexSize);
 				ctx.fillStyle = "black";
 				ctx.textAlign = "center";
@@ -333,10 +345,13 @@ Board.prototype.placeTile = function(tile, ox, oy) {
 
 Board.prototype.makeMove = function(tile, ox, oy, force=false) {
 	// place tile with legal move checking and removing from available tiles
-	
+	var tiles = this.tilesAvailable[tile.player - 2];
+	if (tiles.indexOf(tile.no) === -1) {
+		return false;
+	}
 	if (force || this.legalMove(tile, ox, oy)) {
 		this.placeTile(tile, ox, oy);
-		var tiles = this.tilesAvailable[tile.player - 2];
+		
 		if (tile.grid.length === 0) {
 			tiles.splice(0, 1);  // remove the first tile without placing
 			this.redPlays = !this.redPlays;
@@ -446,7 +461,7 @@ Board.prototype.canSnake = function(x, y, player, len, dir, initial = true) {
 
 Board.prototype.score = function() {
 	// score is difference of longest snakes in each color
-	for (var x = 0; x < 11; ++x) {
+	/*for (var x = 0; x < 11; ++x) {
 		for (var y = 0; y < 11; ++y) {
 			var p = this.grid[y][x]
 			if (p > 1) {
@@ -455,8 +470,8 @@ Board.prototype.score = function() {
 		}
 	}
 	++positionsEvaled;
-	return this.longestSnakes[0] - this.longestSnakes[1];
-	//return this.potentialLength(2) - this.potentialLength(3);
+	return this.longestSnakes[0] - this.longestSnakes[1];*/
+	return this.potentialLength(2) - this.potentialLength(3);
 }
 
 Board.prototype.potentialLength = function(player) {
@@ -521,7 +536,7 @@ Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 1000
 		/*if (initial) {
 			console.log("curr score " + newScore + " comparing to " + bestScore);
 		}*/
-		if ((min && newScore < bestScore) || (!min && newScore >= bestScore)) {
+		if ((min && newScore < bestScore) || (!min && newScore > bestScore)) {
 			bestScore = newScore;
 			bestMove = move;
 			if (initial) {
@@ -535,7 +550,7 @@ Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 1000
 		else {
 			alpha = Math.max(alpha, bestScore);
 		}
-		if (alpha > beta) {
+		if (alpha >= beta) {
 			break;
 		}
 	}
@@ -647,16 +662,20 @@ Board.prototype.randomTest = function() {
 
 Board.prototype.nextMove = function() {
 	var depth = 20;
+	$("#status").html("Calculating next turn...");
 	console.time("turn");
+	var start = Date.now();
+	positionsEvaled = 0;
 	var move = this.minimaxSearch(!this.redPlays, depth);
 	console.log(move);
+	$("#status").html("Found next turn with tile no" + move[0].no + " to " + move[1] + ":" + move[2] + ". It took " + (Date.now() - start) / 1000 + "s. I evaluated " + positionsEvaled + " positions.");
 	console.timeEnd("turn");
 	if (move) {
 		console.log("Best move for " + (this.redPlays ? "red" : "blue"));
 		console.log(move);
 		this.makeMove(...move, true);
 		this.draw();
-		setTimeout(() => {this.nextMove();}, 0);
+		//setTimeout(() => {this.nextMove();}, 0);
 	}
 }
 
