@@ -558,11 +558,14 @@ Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 1000
 		console.log(`examining ${moves.length} possible moves`);
 		console.log(`Minimizing: ${Boolean(min)}`);
 	}
-
-	moves = this.sortMoves(moves);
+	if (this.tilesAvailable[player - 2].length >= 4) {
+		// sorting helps in higher levels only
+		moves = this.sortMoves(moves);
+	}
 	if (!min) moves.reverse();
+	if (moves.length === 0) moves.push(null);
 
-	for (var move of [...moves, null]) {
+	for (var move of moves) {
 		if (initial) {
 			console.log(moves.indexOf(move)+ "/" + moves.length);
 			console.log(`alpha: ${alpha} beta: ${beta}`);
@@ -659,8 +662,10 @@ Board.prototype.customInit = function() {
 	this.makeMove(new Tile(O, BLUE), 5, 5);
 	this.makeMove(new Tile(I, RED), 2, 8);
 	this.makeMove(new Tile(S, BLUE), 6, 5);
-	this.makeMove(new Tile(L, RED, 1, 4), 2, 4);
-	this.makeMove(new Tile(D, BLUE, 0, 2), 8, 1);
+	this.makeMove(new Tile(L, RED, 4, 1), 2, 4);
+	this.makeMove(new Tile(D, BLUE, 2, 0), 8, 1);
+	this.makeMove(new Tile(S, RED, 2, 0), 0, 4);
+	this.makeMove(new Tile(L, BLUE, 3, 1), 8, 3);
 	board.draw();
 }
 
