@@ -8,8 +8,9 @@ function main() {
 	board = new Board();
 	var tile = new Tile([2, 0, 1, 0]);
 	prepareTiles();
-	board.randomTest();
-	board.draw();
+	// board.randomTest();
+	board.customInit();
+	board.minimaxTest();
 }
 
 

@@ -1,5 +1,5 @@
 const TILES = [
-	[[1]],  // u 0
+	[[1]],  // o 0
 	[[1, 1]],  // d 1
 	[[1, 1, 1]],  // w 2
 	[[1, 1], [0, 1]],  // c 3
@@ -8,6 +8,18 @@ const TILES = [
 	[[1, 1, 1, 1]],  // i 6
 	[[0, 1, 1], [1, 0, 1]]  // u 7
 ]
+const O = 0;
+const D = 1;
+const W = 2;
+const C = 3;
+const S = 4;
+const L = 5;
+const I = 6;
+const U = 7;
+
+const RED = 2;
+const BLUE = 3;
+
 const EVIL = [
 	[[1, 1], [1]],
 	[[0, 1], [1, 1]],
@@ -37,7 +49,7 @@ function prepareTiles() {
 }
 var positionsEvaled = 0;
 
-function Tile(no, player) {
+function Tile(no, player, flip = false, rotation = 0) {
 	if (typeof no !== "number") {
 		this.grid = [];
 		for (var r in no.grid) {
@@ -50,6 +62,12 @@ function Tile(no, player) {
 		this.grid = TILES[no].concat();
 		this.player = player;
 		this.no = no;
+	}
+	if (flip) {
+		this.flip();
+	}
+	for (let i = 0; i < rotation; i++) {
+		this.rotate();
 	}
 }
 
@@ -466,30 +484,67 @@ Board.prototype.potentialLength = function(player) {
 	return longest;
 }
 
-Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 10000, initial = true) {
-	var moves = this.possibleMoves(2 + min, !initial);
-	var bestScore = min ? 10000 : -10000;
-	var bestMove;
-	if (depth === 0 || this.tilesAvailable[1].length === 0 || moves.length === 0) {
-		if (initial) {
-			return undefined;
-		}
-		return this.score();
+Board.prototype.copy = function() {
+	var newBoard = new Board(this);
+	for (var r in newBoard.grid) {
+		newBoard.grid[r] = this.grid[r].slice();
 	}
-	for (var move of moves) {
+	for (var r in newBoard.tilesAvailable) {
+		newBoard.tilesAvailable[r] = this.tilesAvailable[r].slice();
+	}
+	newBoard.longestSnakes = this.longestSnakes.slice();
+	return newBoard;
+}
+
+Board.prototype.scoreMove = function(move) {
+	newBoard = this.copy();
+	newBoard.makeMove(...move, true);
+	return newBoard.score();
+}
+
+Board.prototype.sortMoves = function(moves) {
+	var scoredMoves = moves.map((move) => [this.scoreMove(move), move] );
+	scoredMoves.sort();
+	return scoredMoves.map((scoredMove) => scoredMove[1]);
+}
+
+function scoreWin(score) {
+	if (score === 0) return 0;
+	else if (score > 0) return 10000;
+	else return -10000;
+}
+
+Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 10000, initial = true, opponentPassed = false) {
+	player = 2 + min;
+	if (this.tilesAvailable[player - 2].length === 0) {
+		if (initial) return null;
+		return scoreWin(this.score());
+
+	}
+	if (depth === 0) return this.score();
+	var moves = this.possibleMoves(player, !initial);
+	var bestScore = min ? 10001 : -10001;
+	var bestMove = null;
+	
+	if (initial) {
+		console.log(`examining ${moves.length} possible moves`);
+		console.log(`Minimizing: ${Boolean(min)}`);
+	}
+
+
+	moves = this.sortMoves(moves);
+	if (!min) moves.reverse();
+
+	for (var move of [...moves, null]) {
 		if (initial) {
 			console.log(moves.indexOf(move));
+			console.log(`alpha: ${alpha} beta: ${beta}`);
 		}
-		var newBoard = new Board(this);
-		for (var r in newBoard.grid) {
-			newBoard.grid[r] = this.grid[r].slice();
+		var newBoard = this.copy();
+		if (move) {
+			newBoard.makeMove(...move, true);
 		}
-		for (var r in newBoard.tilesAvailable) {
-			newBoard.tilesAvailable[r] = this.tilesAvailable[r].slice();
-		}
-		newBoard.longestSnakes = this.longestSnakes.slice();
-		newBoard.makeMove(...move, true);
-		var newScore = newBoard.minimaxSearch(!min, depth - 1, alpha, beta, false);
+		var newScore = newBoard.minimaxSearch(!min, depth - 1, alpha, beta, false, move !== null);
 		/*if (initial) {
 			console.log("curr score " + newScore + " comparing to " + bestScore);
 		}*/
@@ -513,6 +568,9 @@ Board.prototype.minimaxSearch = function(min, depth, alpha = -10000, beta = 1000
 	}
 	if (initial)
 		return bestMove;
+	if (bestMove === null && opponentPassed) {
+		return scoreWin(bestScore);
+	}
 	return bestScore;
 }
 
@@ -570,6 +628,14 @@ Board.prototype.rotateTest = function(tileNo) {
 	}
 }
 
+Board.prototype.customInit = function() {
+	this.makeMove(new Tile(I, BLUE), 2, 8);
+	this.makeMove(new Tile(S, RED), 6, 5);
+	this.makeMove(new Tile(L, BLUE, true, 4), 2, 4);
+	this.makeMove(new Tile(D, RED, false, 2), 8, 1);
+	board.draw();
+}
+
 Board.prototype.randomTest = function() {
 	var fails = 0;
 	var possibleGamesEstimate = 1;
@@ -618,7 +684,7 @@ Board.prototype.randomTest = function() {
 }
 
 Board.prototype.nextMove = function() {
-	var depth = 1;
+	var depth = this.tilesAvailable[0].length <= 4 ? 10 : 1;
 	console.time("turn");
 	var move = this.minimaxSearch(!this.redPlays, depth);
 	console.log(move);
@@ -632,6 +698,6 @@ Board.prototype.nextMove = function() {
 	}
 }
 
-Board.prototype.minimaxTest = function(depth) {
+Board.prototype.minimaxTest = function() {
 	this.nextMove();
 }
